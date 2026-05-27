@@ -11,6 +11,14 @@
   box-sizing: border-box;
 }
 
+html,
+body,
+#root {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
 body {
   margin: 0;
   min-width: 320px;
@@ -264,7 +272,13 @@ a {
 }
 
 .follow-up-metric-grid {
-  grid-template-columns: repeat(3, minmax(180px, 1fr));
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  gap: 18px;
+  overflow-x: auto;
+  padding: 4px 4px 14px;
+  scrollbar-width: thin;
 }
 
 .metric,
@@ -295,6 +309,39 @@ a {
 .metric-filter {
   appearance: none;
   text-align: left;
+}
+
+.follow-up-metric-grid .metric-filter {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  flex: 0 0 118px;
+  min-height: 118px;
+  gap: 8px;
+  border-radius: 22px;
+  padding: 14px 12px;
+  box-shadow: 0 10px 28px var(--camp-shadow);
+  white-space: normal;
+}
+
+.follow-up-metric-grid .metric-filter span,
+.follow-up-metric-grid .metric-filter strong {
+  line-height: 1;
+}
+
+.follow-up-metric-grid .metric-filter span {
+  color: #6d6f68;
+  font-size: 1rem;
+  font-weight: 800;
+  text-align: center;
+}
+
+.follow-up-metric-grid .metric-filter strong {
+  color: #050807;
+  font-size: 2.9rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-align: center;
 }
 
 .metric-filter.active {
@@ -622,6 +669,11 @@ a {
   line-height: 1.35;
 }
 
+.dashboard-hero-side .dashboard-room-type-overview {
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
 .dashboard-workbench {
   display: grid;
   gap: 18px;
@@ -907,6 +959,11 @@ td .subtext {
   color: #991b1b;
 }
 
+.status-cancellation_postponement {
+  background: #ffedd5;
+  color: #9a3412;
+}
+
 .toolbar {
   display: flex;
   align-items: center;
@@ -957,6 +1014,20 @@ td .subtext {
   padding: 24px;
 }
 
+.form-card {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  display: grid;
+  gap: 22px;
+  padding: 24px;
+  border: 1px solid rgba(217, 210, 194, 0.95);
+  border-radius: 18px;
+  background: rgba(255, 253, 247, 0.88);
+  box-shadow: 0 18px 42px rgba(57, 65, 48, 0.08);
+}
+
 .form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -964,6 +1035,9 @@ td .subtext {
 }
 
 .booking-info-grid {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   grid-template-areas:
     "camp camp camp"
@@ -1007,10 +1081,62 @@ td .subtext {
 
 .booking-exclusive {
   grid-area: exclusive;
+  width: fit-content;
+  max-width: max-content;
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  align-self: center;
+  justify-self: start;
+  margin: 0;
+  padding: 0;
+  color: #172033;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.booking-exclusive input[type='checkbox'] {
+  width: 22px;
+  max-width: 22px;
+  min-width: 22px;
+  height: 22px;
+  min-height: 22px;
+  margin: 0;
+  padding: 0;
+  flex: 0 0 22px;
+  border-radius: 6px;
+  accent-color: #6f7f62;
+  appearance: auto;
 }
 
 .booking-status {
   grid-area: status;
+}
+
+.completion-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(38, 54, 41, 0.34);
+  backdrop-filter: blur(4px);
+}
+
+.completion-panel {
+  width: min(780px, calc(100vw - 32px));
+  max-height: min(88vh, 780px);
+  display: grid;
+  gap: 16px;
+  overflow: auto;
+}
+
+.completion-panel textarea {
+  min-height: min(52vh, 460px);
+  white-space: pre-wrap;
 }
 
 label {
@@ -1131,6 +1257,9 @@ textarea {
 }
 
 .room-pick-grid {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
@@ -1242,6 +1371,8 @@ textarea {
 
 .date-picker-wrap {
   position: relative;
+  width: 100%;
+  max-width: 100%;
   min-width: 0;
 }
 
@@ -1251,6 +1382,8 @@ textarea {
 
 .date-picker-trigger {
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
   min-height: 62px;
   justify-content: center;
   border: 1px solid var(--camp-border);
@@ -1307,6 +1440,24 @@ textarea {
   min-height: 46px;
   justify-content: center;
   white-space: nowrap;
+}
+
+.cute-date-control-panel {
+  width: min(100%, 760px);
+}
+
+.cute-date-control-bar {
+  grid-template-columns: 104px minmax(240px, 1fr) 104px;
+}
+
+.cute-date-control-bar .date-picker-wrap {
+  width: 100%;
+  min-width: 0;
+}
+
+.cute-date-control-bar .date-picker-trigger {
+  width: 100%;
+  min-width: 0;
 }
 
 .cute-calendar {
@@ -1400,9 +1551,178 @@ textarea {
   box-shadow: 0 8px 18px rgba(65, 74, 58, 0.22);
 }
 
+.cute-calendar-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.cute-calendar-today,
+.cute-calendar-confirm {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 999px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.cute-calendar-today {
+  min-height: 44px;
+  padding: 0 18px;
+  background: #f1eee6;
+  color: #202c23;
+}
+
+.cute-calendar-confirm {
+  min-height: 48px;
+  min-width: 92px;
+  gap: 6px;
+  padding: 0 18px;
+  background: var(--camp-accent-strong);
+  color: #fffdf7;
+  box-shadow: 0 10px 22px rgba(65, 74, 58, 0.22);
+}
+
 .revenue-date-control {
   width: 100%;
   padding: 0;
+}
+
+.revenue-page {
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+.revenue-filter-panel {
+  display: grid;
+  gap: 22px;
+  background: rgba(255, 253, 247, 0.92);
+}
+
+.revenue-mode-tabs {
+  width: min(100%, 420px);
+}
+
+.revenue-mode-tabs button {
+  flex: 1;
+}
+
+.revenue-mode-tabs button.active {
+  background: #2f6f55;
+  color: #fffdf7;
+}
+
+.revenue-month-control {
+  display: grid;
+  grid-template-columns: auto minmax(220px, 1fr) auto;
+  align-items: end;
+  gap: 10px;
+  border: 1px solid #d9d2c2;
+  border-radius: 8px;
+  padding: 12px;
+  background: rgba(255, 253, 247, 0.78);
+}
+
+.revenue-month-control label {
+  display: grid;
+  gap: 8px;
+  color: #344054;
+  font-weight: 900;
+}
+
+.revenue-month-control input {
+  width: 100%;
+  min-height: 48px;
+  border: 1px solid #d9d2c2;
+  border-radius: 8px;
+  padding: 0 14px;
+  background: #fffdf7;
+  color: #172033;
+  font-weight: 900;
+}
+
+.revenue-range-preview {
+  min-height: 78px;
+  border-color: #d9d2c2;
+  background: #fffdf7;
+}
+
+.revenue-report-card {
+  display: grid;
+  gap: 18px;
+  border-radius: 28px;
+  padding: 24px;
+  background: var(--revenue-card-bg, #527453);
+  color: #fffdf7;
+  box-shadow: 0 18px 42px var(--revenue-card-shadow, rgba(57, 65, 48, 0.18));
+}
+
+.revenue-card-camp-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  width: fit-content;
+  border-radius: 999px;
+  padding: 10px 18px;
+  background: #fffdf7;
+  color: #334155;
+  font-weight: 900;
+}
+
+.revenue-card-camp-pill span {
+  color: #667085;
+}
+
+.revenue-card-camp-pill strong {
+  color: var(--revenue-card-strong, #527453);
+}
+
+.revenue-total-card,
+.revenue-mini-card {
+  display: grid;
+  gap: 8px;
+  border-radius: 24px;
+  padding: 20px 24px;
+  background: #fff8d8;
+  color: #111827;
+}
+
+.revenue-total-card {
+  justify-items: center;
+  text-align: center;
+}
+
+.revenue-total-card span,
+.revenue-mini-card span {
+  color: #667085;
+  font-weight: 900;
+}
+
+.revenue-total-card strong {
+  font-size: clamp(2.4rem, 7vw, 4.3rem);
+  line-height: 1;
+  letter-spacing: 0;
+}
+
+.revenue-breakdown-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.revenue-mini-card {
+  min-height: 112px;
+  align-content: center;
+  background: #fffdf7;
+}
+
+.revenue-mini-card strong {
+  font-size: clamp(1.35rem, 3vw, 1.75rem);
+  line-height: 1.1;
 }
 
 .field-schedule-list {
@@ -1896,6 +2216,9 @@ body {
   --camp-card: #f6ead8;
   --camp-border: #e9d2b3;
   --camp-shadow: rgba(154, 106, 47, 0.14);
+  --revenue-card-bg: #8a6842;
+  --revenue-card-strong: #6f4b1f;
+  --revenue-card-shadow: rgba(111, 75, 31, 0.2);
 }
 
 .app-shell.camp-theme-all {
@@ -2090,6 +2413,23 @@ textarea:focus {
 .mobile-card-status {
   background: #dff0e2;
   color: #31543b;
+}
+
+.status-cancellation_postponement,
+.mobile-card-status.status-cancellation_postponement {
+  background: #ffe1bf;
+  color: #9a3f08;
+}
+
+.mobile-card-status.status-pending,
+.mobile-card-status.status-awaiting_deposit_confirmation {
+  background: #fff1cd;
+  color: #8a5a12;
+}
+
+.mobile-card-status.status-cancelled {
+  background: #fee2e2;
+  color: #991b1b;
 }
 
 .availability-room,
@@ -2356,6 +2696,35 @@ textarea:focus {
     height: 14px;
   }
 
+  .cute-date-control-panel {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .cute-date-control-bar {
+    grid-template-columns: 78px minmax(0, 1fr) 78px;
+    gap: 8px;
+  }
+
+  .cute-date-control-bar .date-control-label {
+    grid-column: 1 / -1;
+  }
+
+  .cute-date-control-bar .date-nav-button {
+    min-height: 50px;
+    padding: 0 8px;
+    font-size: 0.9rem;
+  }
+
+  .cute-date-control-bar .date-picker-trigger {
+    min-height: 50px;
+    padding: 0 8px;
+  }
+
+  .cute-date-control-bar .date-picker-trigger b {
+    font-size: 1.05rem;
+  }
+
   .availability-datebar.date-control-bar .field-preview {
     grid-column: 1 / -1;
   }
@@ -2386,6 +2755,32 @@ textarea:focus {
     min-width: 0;
     max-width: 100%;
     font-size: 1rem;
+  }
+
+  .form-panel,
+  .form-card,
+  .subsection,
+  .rate-reason,
+  .room-type-legend,
+  .room-pick-grid,
+  .room-pick {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .form-card {
+    padding: 16px;
+  }
+
+  .room-pick,
+  .room-pick strong,
+  .room-pick small {
+    overflow-wrap: anywhere;
+  }
+
+  .cute-calendar {
+    max-width: calc(100vw - 44px);
   }
 
   .page-stack {
@@ -2432,6 +2827,42 @@ textarea:focus {
   .metric-grid-wide .metric strong {
     font-size: 0.9rem;
     line-height: 1;
+  }
+
+  .follow-up-metric-grid {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    align-items: stretch;
+    gap: 6px;
+    overflow: visible;
+    padding: 4px 0 10px;
+  }
+
+  .follow-up-metric-grid .metric.metric-filter {
+    display: grid;
+    align-content: center;
+    justify-items: center;
+    min-width: 0;
+    width: 100%;
+    min-height: 68px;
+    gap: 4px;
+    padding: 7px 2px;
+    border-radius: 14px;
+    box-shadow: 0 6px 18px var(--camp-shadow);
+    white-space: normal;
+  }
+
+  .follow-up-metric-grid .metric.metric-filter span {
+    font-size: clamp(0.56rem, 2.35vw, 0.72rem);
+    line-height: 1.05;
+    text-align: center;
+    white-space: nowrap;
+  }
+
+  .follow-up-metric-grid .metric.metric-filter strong {
+    font-size: clamp(1.25rem, 5.6vw, 1.7rem);
+    line-height: 1;
+    text-align: center;
   }
 
   .form-panel,
@@ -2584,6 +3015,23 @@ textarea:focus {
   }
 }
 
+@media (max-width: 1120px) {
+  .booking-info-grid {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "camp"
+      "checkin"
+      "checkout"
+      "guest"
+      "phone"
+      "invoice"
+      "invoiceNote"
+      "note"
+      "exclusive"
+      "status";
+  }
+}
+
 @media (max-width: 560px) {
   .page-header {
     align-items: flex-start;
@@ -2682,6 +3130,11 @@ textarea:focus {
     padding: 16px;
   }
 
+  .dashboard-hero-side .dashboard-room-type-overview {
+    font-size: 0.78rem;
+    line-height: 1.4;
+  }
+
   .dashboard-workbench-head {
     align-items: flex-start;
     flex-direction: column;
@@ -2765,5 +3218,66 @@ textarea:focus {
     min-height: 34px;
     padding: 6px 8px;
     font-size: 0.82rem;
+  }
+
+  .revenue-page {
+    max-width: 100%;
+  }
+
+  .revenue-filter-panel {
+    padding: 14px;
+    gap: 16px;
+  }
+
+  .revenue-mode-tabs {
+    width: 100%;
+  }
+
+  .revenue-month-control {
+    grid-template-columns: 1fr;
+  }
+
+  .revenue-report-card {
+    border-radius: 22px;
+    padding: 18px;
+  }
+
+  .revenue-card-camp-pill {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .revenue-total-card,
+  .revenue-mini-card {
+    border-radius: 16px;
+    padding: 12px 10px;
+  }
+
+  .revenue-total-card {
+    padding: 14px 12px;
+  }
+
+  .revenue-total-card span,
+  .revenue-mini-card span {
+    font-size: 0.8rem;
+    line-height: 1.15;
+  }
+
+  .revenue-total-card strong {
+    font-size: clamp(2rem, 10vw, 3rem);
+  }
+
+  .revenue-mini-card {
+    min-height: 92px;
+    gap: 6px;
+  }
+
+  .revenue-mini-card strong {
+    font-size: clamp(1rem, 5vw, 1.35rem);
+  }
+
+  .revenue-breakdown-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
   }
 }

@@ -28,7 +28,7 @@ export function AppShell() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const closeMobileMenu = () => setIsMobileMenuOpen(false);
-  const campDisplayName = selectedCampId === ALL_CAMPS ? '全部營區' : selectedCamp?.name ?? '未選擇營區';
+  const campDisplayName = selectedCampId === ALL_CAMPS ? '全部營區' : selectedCamp?.name ?? '尚未選擇營區';
   const campThemeClass = selectedCamp?.name.includes('秋慕')
     ? 'camp-theme-qiumu'
     : selectedCamp?.name.includes('燈火')
@@ -50,10 +50,10 @@ export function AppShell() {
         type="button"
         className="desktop-sidebar-toggle"
         onClick={() => setIsSidebarCollapsed((value) => !value)}
-        aria-label={isSidebarCollapsed ? '顯示選單' : '隱藏選單'}
+        aria-label={isSidebarCollapsed ? '展開選單' : '收合選單'}
       >
         {isSidebarCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
-        <span>{isSidebarCollapsed ? '選單' : '收合'}</span>
+        <span>{isSidebarCollapsed ? '展開' : '收合'}</span>
       </button>
       <button
         type="button"
@@ -86,7 +86,7 @@ export function AppShell() {
               </option>
             ))}
           </select>
-          {campError && <small>請先執行多營區 SQL</small>}
+          {campError && <small>請先完成營區 SQL</small>}
         </label>
 
         <nav className="nav-list">
@@ -94,22 +94,26 @@ export function AppShell() {
             <LayoutDashboard size={18} />
             今日總覽
           </NavLink>
+          <NavLink to="/field-schedule" onClick={closeMobileMenu}>
+            <ScrollText size={18} />
+            每日訂房表
+          </NavLink>
           <NavLink to="/availability" onClick={closeMobileMenu}>
             <CalendarCheck size={18} />
             空房日曆
           </NavLink>
-          <NavLink to="/find-availability" onClick={closeMobileMenu}>
-            <Search size={18} />
-            找空房
-          </NavLink>
-          <NavLink to="/field-schedule" onClick={closeMobileMenu}>
-            <ScrollText size={18} />
-            現場訂房表
-          </NavLink>
-          <NavLink to="/bookings" onClick={closeMobileMenu}>
-            <CalendarDays size={18} />
-            訂房列表
-          </NavLink>
+          {canEdit && (
+            <NavLink to="/find-availability" onClick={closeMobileMenu}>
+              <Search size={18} />
+              找空房
+            </NavLink>
+          )}
+          {canEdit && (
+            <NavLink to="/bookings" onClick={closeMobileMenu}>
+              <CalendarDays size={18} />
+              訂房列表
+            </NavLink>
+          )}
           {canEdit && (
             <NavLink to="/bookings/new" onClick={closeMobileMenu}>
               <Plus size={18} />
@@ -145,7 +149,7 @@ export function AppShell() {
         <div className="user-panel">
           <div>
             <strong>{profile?.full_name || '內部使用者'}</strong>
-            <span>{role ? role.toUpperCase() : '未設定角色'}</span>
+            <span>{role ? role.toUpperCase() : '尚未設定角色'}</span>
           </div>
           <button className="icon-button" onClick={signOut} title="登出">
             <LogOut size={18} />

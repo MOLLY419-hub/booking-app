@@ -2,6 +2,7 @@ import { CheckCircle2 } from 'lucide-react';
 import { FormEvent, Fragment, useEffect, useMemo, useState } from 'react';
 import { ALL_CAMPS, useCamp } from '../contexts/CampContext';
 import { createClientId } from '../lib/id';
+import { bookingOrderStatusClass, bookingOrderStatusLabel } from '../lib/bookingStatus';
 import { supabase } from '../lib/supabase';
 import type { BookingOrder, InvoiceStatus } from '../types/database';
 
@@ -249,12 +250,12 @@ export function FollowUpPage() {
     value: number;
     className?: string;
   }> = [
+    { key: 'awaiting_deposit', label: '待對帳', value: summary.awaitingDeposit, className: 'metric-available' },
     { key: 'unpaid_deposit', label: '未付訂金', value: summary.unpaidDeposit },
     { key: 'onsite_invoice', label: '現場開立', value: summary.onsiteInvoice, className: 'metric-onsite' },
-    { key: 'all', label: '待處理訂單', value: orders.length },
-    { key: 'awaiting_deposit', label: '待對帳', value: summary.awaitingDeposit, className: 'metric-available' },
     { key: 'month_end_invoice', label: '月底開立', value: summary.monthEndInvoice },
     { key: 'cancellation_postponement', label: '取消延期', value: summary.cancellationPostponement },
+    { key: 'all', label: '待處理訂單', value: orders.length },
   ];
 
   return (
@@ -365,7 +366,9 @@ export function FollowUpPage() {
                         <td>{renderInvoiceStatus(normalizeInvoiceStatus(order.invoice_status))}</td>
                         <td>{order.invoice_note || '-'}</td>
                         <td>
-                          <span className={`status status-${order.status}`}>{statusLabel(order.status)}</span>
+                          <span className={`status ${bookingOrderStatusClass(order)}`}>
+                            {bookingOrderStatusLabel(order)}
+                          </span>
                         </td>
                         <td>
                           <div className="inline-actions">
@@ -545,7 +548,9 @@ function MobileFollowUpCard({
           <span>發票需求</span>
           <div className="mobile-order-card-side-box">{renderInvoiceStatus(normalizeInvoiceStatus(order.invoice_status))}</div>
           <span>狀態</span>
-          <span className={`status mobile-card-status status-${order.status}`}>{statusLabel(order.status)}</span>
+          <span className={`status mobile-card-status ${bookingOrderStatusClass(order)}`}>
+            {bookingOrderStatusLabel(order)}
+          </span>
           <div className="mobile-order-card-actions">
             {paymentInfo.payments.some(isActiveDepositPayment) && (
               <button className="secondary-button" onClick={() => onExpand(!isExpanded)}>

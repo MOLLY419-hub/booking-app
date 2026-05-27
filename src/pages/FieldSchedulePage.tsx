@@ -1,8 +1,10 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { CuteDateNavigator } from '../components/CuteDatePicker';
 import { ALL_CAMPS, useCamp } from '../contexts/CampContext';
 import { useAuth } from '../contexts/AuthContext';
+import { bookingOrderStatusClass, bookingOrderStatusLabel } from '../lib/bookingStatus';
 import { supabase } from '../lib/supabase';
 import type { BookingOrderWithBookings, BookingStatus, DailyHandoff, InvoiceStatus, Room } from '../types/database';
 
@@ -129,8 +131,10 @@ export function FieldSchedulePage() {
       <div className="page-header field-schedule-header">
         <div>
           <p className="eyebrow">{formatDisplayDate(date)} {formatWeekday(date)}</p>
-          <h1>現場訂房表</h1>
+          <h1>每日訂房表</h1>
         </div>
+        <CuteDateNavigator value={date} onChange={setDate} onMove={moveDate} />
+        {false && (
         <div className="date-control-panel field-date-control-panel">
           <div className="schedule-datebar date-control-bar">
           <span className="date-control-label">查看日期</span>
@@ -157,6 +161,7 @@ export function FieldSchedulePage() {
           </button>
           </div>
         </div>
+        )}
         <Link className="secondary-button field-view-all-button" to="/bookings">
           查看全部
         </Link>
@@ -318,7 +323,7 @@ function ScheduleSection({
                   <td>{formatPrice(order.balance_amount)}</td>
                   <td className="field-invoice-cell">{renderInvoiceStatus(order)}</td>
                   <td>
-                    <span className={`status status-${order.status}`}>{statusLabel(order.status)}</span>
+                    <span className={`status ${bookingOrderStatusClass(order)}`}>{bookingOrderStatusLabel(order)}</span>
                   </td>
                   <td>{cleanNoteForField(order.note)}</td>
                 </tr>
@@ -362,7 +367,9 @@ function MobileScheduleCard({
           <span>發票</span>
           <div className="mobile-order-card-side-box field-invoice-cell">{renderInvoiceStatus(order)}</div>
           <span>狀態</span>
-          <span className={`status mobile-card-status status-${order.status}`}>{statusLabel(order.status)}</span>
+          <span className={`status mobile-card-status ${bookingOrderStatusClass(order)}`}>
+            {bookingOrderStatusLabel(order)}
+          </span>
         </div>
         <div className="mobile-order-card-note">訂單備註：{cleanNoteForField(order.note)}</div>
       </div>

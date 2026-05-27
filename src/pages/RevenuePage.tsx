@@ -1,24 +1,37 @@
-import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import { CuteDateNavigator } from '../components/CuteDatePicker';
 import { ALL_CAMPS, useCamp } from '../contexts/CampContext';
 import { supabase } from '../lib/supabase';
 import type { BookingOrder } from '../types/database';
 
 type RevenueMode = 'day' | 'tenDays' | 'month';
+type RevenueFilterState = {
+  mode: RevenueMode;
+  date: string;
+  month: string;
+};
 
 const today = formatLocalDate(new Date());
 const thisMonth = today.slice(0, 7);
+const REVENUE_FILTER_STORAGE_KEY = 'booking-app-revenue-filter';
 
 export function RevenuePage() {
-  const { selectedCampId } = useCamp();
-  const [mode, setMode] = useState<RevenueMode>('day');
-  const [date, setDate] = useState(today);
-  const [month, setMonth] = useState(thisMonth);
+  const { camps, selectedCampId } = useCamp();
+  const [savedFilter] = useState(() => getStoredRevenueFilter());
+  const [mode, setMode] = useState<RevenueMode>(savedFilter.mode);
+  const [date, setDate] = useState(savedFilter.date);
+  const [month, setMonth] = useState(savedFilter.month);
   const [orders, setOrders] = useState<BookingOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   const range = useMemo(() => getRange(mode, date, month), [date, mode, month]);
+  const campName =
+    selectedCampId === ALL_CAMPS ? '全部營區' : camps.find((camp) => camp.id === selectedCampId)?.name ?? '目前營區';
+
+  useEffect(() => {
+    saveStoredRevenueFilter({ mode, date, month });
+  }, [date, mode, month]);
 
   useEffect(() => {
     async function loadRevenue() {
@@ -41,6 +54,7 @@ export function RevenuePage() {
 
       if (loadError) {
         setError(loadError.message);
+        setOrders([]);
       } else {
         setOrders(data ?? []);
       }
@@ -53,11 +67,11 @@ export function RevenuePage() {
   const summary = useMemo(() => {
     return orders.reduce(
       (total, order) => {
+        const deposit = Number(order.deposit_amount || 0);
         total.totalAmount += Number(order.total_amount || 0);
-        total.depositAmount += Number(order.deposit_amount || 0);
-        total.confirmedDeposit += order.deposit_confirmed ? Number(order.deposit_amount || 0) : 0;
+        total.depositAmount += deposit;
+        total.confirmedDeposit += order.deposit_confirmed ? deposit : 0;
         total.balanceAmount += Number(order.balance_amount || 0);
-        total.roomCount += Number(order.room_count || 0);
         return total;
       },
       {
@@ -65,7 +79,6 @@ export function RevenuePage() {
         depositAmount: 0,
         confirmedDeposit: 0,
         balanceAmount: 0,
-        roomCount: 0,
       },
     );
   }, [orders]);
@@ -76,142 +89,96 @@ export function RevenuePage() {
     setDate(formatLocalDate(next));
   }
 
+  function moveMonth(months: number) {
+    const [year, monthValue] = month.split('-').map(Number);
+    const next = new Date(year, monthValue - 1 + months, 1);
+    setMonth(`${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}`);
+  }
+
   return (
-    <section className="page-stack">
+    <section className="page-stack revenue-page">
       <div className="page-header">
         <div>
-          <p className="eyebrow">Revenue</p>
+          <p className="eyebrow">REVENUE REPORT</p>
           <h1>營收報表</h1>
         </div>
       </div>
 
-      <div className="form-panel page-stack">
-        <div className="segmented-control">
-          <button className={mode === 'day' ? 'active' : ''} onClick={() => setMode('day')}>
+      <div className="form-panel revenue-filter-panel">
+        <div className="segmented-control revenue-mode-tabs">
+          <button type="button" className={mode === 'day' ? 'active' : ''} onClick={() => setMode('day')}>
             每日
           </button>
-          <button className={mode === 'tenDays' ? 'active' : ''} onClick={() => setMode('tenDays')}>
+          <button type="button" className={mode === 'tenDays' ? 'active' : ''} onClick={() => setMode('tenDays')}>
             十天
           </button>
-          <button className={mode === 'month' ? 'active' : ''} onClick={() => setMode('month')}>
+          <button type="button" className={mode === 'month' ? 'active' : ''} onClick={() => setMode('month')}>
             每月
           </button>
         </div>
 
-        <div className="form-grid">
-          {mode === 'month' ? (
+        {mode === 'month' ? (
+          <div className="revenue-month-control">
+            <button className="secondary-button" type="button" onClick={() => moveMonth(-1)}>
+              前一月
+            </button>
             <label>
-              選擇月份
+              查看月份
               <input type="month" value={month} onChange={(event) => setMonth(event.target.value)} />
             </label>
-          ) : (
-            <div className="date-control-panel revenue-date-control">
-              <div className="date-control-bar">
-                <span className="date-control-label">{mode === 'day' ? '查看日期' : '十天起始日'}</span>
-                <button className="secondary-button" type="button" onClick={() => moveDate(mode === 'day' ? -1 : -10)}>
-                  <ChevronLeft size={18} />
-                  {mode === 'day' ? '前一天' : '前十天'}
-                </button>
-                <label className="date-control-input">
-                  <input
-                    type="date"
-                    value={date}
-                    onChange={(event) => setDate(event.target.value)}
-                    onClick={(event) => {
-                      (event.currentTarget as HTMLInputElement & { showPicker?: () => void }).showPicker?.();
-                    }}
-                  />
-                  <span>
-                    <b>{formatDisplayDate(date)}</b>
-                  </span>
-                </label>
-                <button className="secondary-button" type="button" onClick={() => moveDate(mode === 'day' ? 1 : 10)}>
-                  {mode === 'day' ? '後一天' : '後十天'}
-                  <ChevronRight size={18} />
-                </button>
-              </div>
-            </div>
-          )}
-          <div className="field-preview">
-            <span>統計區間</span>
-            <strong>
-              {formatDisplayDateWithWeekday(range.start)} - {formatDisplayDateWithWeekday(range.end)}
-            </strong>
+            <button className="secondary-button" type="button" onClick={() => moveMonth(1)}>
+              後一月
+            </button>
           </div>
+        ) : (
+          <CuteDateNavigator
+            value={date}
+            onChange={setDate}
+            onMove={moveDate}
+            label="查看日期"
+            previousLabel={mode === 'day' ? '前一天' : '前十天'}
+            nextLabel={mode === 'day' ? '後一天' : '後十天'}
+            previousDays={mode === 'day' ? -1 : -10}
+            nextDays={mode === 'day' ? 1 : 10}
+          />
+        )}
+
+        <div className="field-preview revenue-range-preview">
+          <span>統計區間</span>
+          <strong>
+            {formatDisplayDateWithWeekday(range.start)} - {formatDisplayDateWithWeekday(range.end)}
+          </strong>
         </div>
       </div>
 
-      <div className="metric-grid metric-grid-wide">
-        <article className="metric metric-available">
-          <span>訂單總額</span>
-          <strong>{formatPrice(summary.totalAmount)}</strong>
-        </article>
-        <article className="metric">
-          <span>已確認訂金</span>
-          <strong>{formatPrice(summary.confirmedDeposit)}</strong>
-        </article>
-        <article className="metric">
-          <span>訂金金額</span>
-          <strong>{formatPrice(summary.depositAmount)}</strong>
-        </article>
-        <article className="metric">
-          <span>尾款金額</span>
-          <strong>{formatPrice(summary.balanceAmount)}</strong>
-        </article>
-        <article className="metric">
-          <span>房間數 / 訂單數</span>
-          <strong>
-            {summary.roomCount} / {orders.length}
-          </strong>
-        </article>
-      </div>
+      {error && <div className="form-error">{error}</div>}
 
-      <div className="table-panel">
-        {error && <div className="form-error">{error}</div>}
-        {loading ? (
-          <div className="empty-state">載入中...</div>
-        ) : orders.length === 0 ? (
-          <div className="empty-state">這個區間沒有訂單</div>
-        ) : (
-          <div className="table-scroll">
-            <table>
-              <thead>
-                <tr>
-                  <th>入住</th>
-                  <th>退房</th>
-                  <th>住客</th>
-                  <th>房間數</th>
-                  <th>總額</th>
-                  <th>訂金</th>
-                  <th>尾款</th>
-                  <th>入帳</th>
-                  <th>狀態</th>
-                </tr>
-              </thead>
-              <tbody>
-                {orders.map((order) => (
-                  <tr key={order.id}>
-                    <td>{order.check_in_date}</td>
-                    <td>{order.check_out_date}</td>
-                    <td>
-                      <strong>{order.guest_name}</strong>
-                      <span className="subtext">{order.guest_phone || '未填電話'}</span>
-                    </td>
-                    <td>{order.room_count}</td>
-                    <td>{formatPrice(order.total_amount)}</td>
-                    <td>{formatPrice(order.deposit_amount)}</td>
-                    <td>{formatPrice(order.balance_amount)}</td>
-                    <td>{order.deposit_confirmed ? '已入帳' : '未確認'}</td>
-                    <td>
-                      <span className={`status status-${order.status}`}>{statusLabel(order.status)}</span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+      <section className="revenue-report-card">
+        <div className="revenue-card-camp-pill">
+          <span>目前營區</span>
+          <strong>{campName}</strong>
+        </div>
+
+        <article className="revenue-total-card">
+          <span>訂單總額</span>
+          <strong>{loading ? '載入中...' : formatPrice(summary.totalAmount)}</strong>
+        </article>
+
+        <div className="revenue-breakdown-grid">
+          <article className="revenue-mini-card">
+            <span>尾款總額</span>
+            <strong>{loading ? '-' : formatPrice(summary.balanceAmount)}</strong>
+          </article>
+          <article className="revenue-mini-card">
+            <span>訂金金額</span>
+            <strong>{loading ? '-' : formatPrice(summary.depositAmount)}</strong>
+          </article>
+          <article className="revenue-mini-card">
+            <span>已確認訂金</span>
+            <strong>{loading ? '-' : formatPrice(summary.confirmedDeposit)}</strong>
+          </article>
+        </div>
+      </section>
     </section>
   );
 }
@@ -261,8 +228,8 @@ function formatDisplayDateWithWeekday(date: string) {
 }
 
 function formatWeekday(date: string) {
-  const labels = ['日', '一', '二', '三', '四', '五', '六'];
-  return `週${labels[parseLocalDate(date).getDay()]}`;
+  const labels = ['週日', '週一', '週二', '週三', '週四', '週五', '週六'];
+  return labels[parseLocalDate(date).getDay()];
 }
 
 function formatPrice(price: number) {
@@ -273,14 +240,48 @@ function formatPrice(price: number) {
   }).format(price);
 }
 
-function statusLabel(status: string) {
-  const labels: Record<string, string> = {
-    pending: '未確認',
-    awaiting_deposit_confirmation: '待對帳',
-    confirmed: '已確認',
-    checked_in: '已入住',
-    checked_out: '已退房',
-    cancelled: '已取消',
+function getStoredRevenueFilter(): RevenueFilterState {
+  const fallback = getDefaultRevenueFilter();
+
+  if (typeof window === 'undefined') return fallback;
+
+  try {
+    const raw = window.localStorage.getItem(REVENUE_FILTER_STORAGE_KEY);
+    if (!raw) return fallback;
+
+    const parsed = JSON.parse(raw) as Partial<RevenueFilterState>;
+    return {
+      mode: isRevenueMode(parsed.mode) ? parsed.mode : fallback.mode,
+      date: isDateValue(parsed.date) ? parsed.date : fallback.date,
+      month: isMonthValue(parsed.month) ? parsed.month : fallback.month,
+    };
+  } catch {
+    return fallback;
+  }
+}
+
+function saveStoredRevenueFilter(filter: RevenueFilterState) {
+  if (typeof window === 'undefined') return;
+
+  window.localStorage.setItem(REVENUE_FILTER_STORAGE_KEY, JSON.stringify(filter));
+}
+
+function getDefaultRevenueFilter(): RevenueFilterState {
+  return {
+    mode: 'day',
+    date: today,
+    month: thisMonth,
   };
-  return labels[status] ?? status;
+}
+
+function isRevenueMode(value: unknown): value is RevenueMode {
+  return value === 'day' || value === 'tenDays' || value === 'month';
+}
+
+function isDateValue(value: unknown): value is string {
+  return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
+
+function isMonthValue(value: unknown): value is string {
+  return typeof value === 'string' && /^\d{4}-\d{2}$/.test(value);
 }
