@@ -191,7 +191,12 @@ export type Database = {
       };
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      delete_booking_order: {
+        Args: { target_order_id: string };
+        Returns: void;
+      };
+    };
     Enums: {
       app_role: UserRole;
       booking_status: BookingStatus;

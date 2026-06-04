@@ -387,15 +387,9 @@ const [editingOrder, setEditingOrder] = useState<BookingOrderWithBookings | null
 
     setError('');
 
-    const { error: bookingError } = await supabase.from('bookings').delete().eq('order_id', order.id);
-    if (bookingError) {
-      setError(bookingError.message);
-      return;
-    }
-
-    const { error: orderError } = await supabase.from('booking_orders').delete().eq('id', order.id);
-    if (orderError) {
-      setError(orderError.message);
+    const { error: deleteError } = await supabase.rpc('delete_booking_order', { target_order_id: order.id });
+    if (deleteError) {
+      setError(deleteError.message);
       return;
     }
 
@@ -407,7 +401,13 @@ const [editingOrder, setEditingOrder] = useState<BookingOrderWithBookings | null
     if (!normalized) return orders;
     return orders.filter((order) => {
       const roomTypes = summarizeRoomTypes(order, activeRoomCount);
-      return [order.guest_name, order.guest_phone, cleanNoteForDisplay(order.note), roomTypes]
+      return [
+        order.guest_name,
+        order.guest_phone,
+        cleanNoteForDisplay(order.note),
+        roomTypes,
+        ...getOrderDateSearchValues(order),
+      ]
         .filter(Boolean)
         .some((value) => value!.toLowerCase().includes(normalized));
     });
@@ -505,7 +505,7 @@ const [editingOrder, setEditingOrder] = useState<BookingOrderWithBookings | null
         <input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="搜尋住客、電話、備註或房型"
+          placeholder="搜尋住客、電話、日期、備註或房型"
         />
       </div>
 
@@ -1371,6 +1371,35 @@ function getNightCount(checkInDate: string, checkOutDate: string) {
 
 function formatCompactDate(date: string) {
   return date.replace(/-/g, '');
+}
+
+function getOrderDateSearchValues(order: Pick<BookingOrderWithBookings, 'check_in_date' | 'check_out_date'>) {
+  const stayDates = datesBetween(order.check_in_date, order.check_out_date);
+  const allDates = [order.check_in_date, order.check_out_date, ...stayDates];
+  const dateValues = allDates.flatMap(formatDateSearchValues);
+  return [
+    ...dateValues,
+    `${order.check_in_date} ${order.check_out_date}`,
+    `${formatCompactDate(order.check_in_date)} ${formatCompactDate(order.check_out_date)}`,
+    `${formatDisplayDate(order.check_in_date)} ${formatDisplayDate(order.check_out_date)}`,
+  ];
+}
+
+function formatDateSearchValues(date: string) {
+  const [year, month, day] = date.split('-');
+  const monthNumber = String(Number(month));
+  const dayNumber = String(Number(day));
+
+  return [
+    date,
+    `${year}${month}${day}`,
+    `${year}/${month}/${day}`,
+    `${year}/${monthNumber}/${dayNumber}`,
+    `${month}/${day}`,
+    `${monthNumber}/${dayNumber}`,
+    `${month}${day}`,
+    `${monthNumber}月${dayNumber}日`,
+  ];
 }
 
 function formatPrice(price: number) {
