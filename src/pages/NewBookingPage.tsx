@@ -1,5 +1,5 @@
 import { Check, Clipboard } from 'lucide-react';
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { ALL_CAMPS, useCamp } from '../contexts/CampContext';
@@ -49,32 +49,18 @@ type RateInfo = {
 
 type BookingDateField = 'check_in_date' | 'check_out_date';
 
-export function NewBookingPage() {
-  const navigate = useNavigate();
-  const { user } = useAuth();
-  const { camps, selectedCampId } = useCamp();
-  const [orderCampId, setOrderCampId] = useState('');
-  const [rooms, setRooms] = useState<Room[]>([]);
-  const [bookedRoomIds, setBookedRoomIds] = useState<Set<string>>(new Set());
-  const [priceRules, setPriceRules] = useState<PriceRule[]>([]);
-  const [priceCalendar, setPriceCalendar] = useState<PriceCalendar[]>([]);
-  const [selectedRoomIds, setSelectedRoomIds] = useState<string[]>([]);
-  const [saving, setSaving] = useState(false);
-  const [loadingAvailability, setLoadingAvailability] = useState(false);
-  const [error, setError] = useState('');
-  const [completionMessage, setCompletionMessage] = useState('');
-  const [completionCopyError, setCompletionCopyError] = useState('');
-  const [copied, setCopied] = useState(false);
-  const [isExclusiveBooking, setIsExclusiveBooking] = useState(false);
-  const [roomTypeFilter, setRoomTypeFilter] = useState('all');
-  const [openDatePicker, setOpenDatePicker] = useState<BookingDateField | null>(null);
-  const [bookingCalendarMonth, setBookingCalendarMonth] = useState(startOfMonth(today));
-  const [openPaymentDatePicker, setOpenPaymentDatePicker] = useState<string | null>(null);
-  const [paymentCalendarMonth, setPaymentCalendarMonth] = useState(startOfMonth(today));
-  const [depositPayments, setDepositPayments] = useState<DepositPayment[]>([
-    { id: createClientId(), paid_date: today, amount: '', last5: '', confirmed: false, note: '' },
-  ]);
-  const [form, setForm] = useState<NewOrderForm>({
+const NEW_BOOKING_DRAFT_KEY = 'booking-app-new-booking-draft-v1';
+
+type NewBookingDraft = {
+  orderCampId: string;
+  form: NewOrderForm;
+  depositPayments: DepositPayment[];
+  isExclusiveBooking: boolean;
+  roomTypeFilter: string;
+};
+
+function createEmptyOrderForm(): NewOrderForm {
+  return {
     guest_name: '',
     guest_phone: '',
     check_in_date: today,
@@ -90,7 +76,96 @@ export function NewBookingPage() {
     invoice_note: '',
     status: 'pending',
     note: '',
+  };
+}
+
+function createEmptyDepositPayment(): DepositPayment {
+  return { id: createClientId(), paid_date: today, amount: '', last5: '', confirmed: false, note: '' };
+}
+
+function readNewBookingDraft(): Partial<NewBookingDraft> | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const rawDraft = window.localStorage.getItem(NEW_BOOKING_DRAFT_KEY);
+    return rawDraft ? (JSON.parse(rawDraft) as Partial<NewBookingDraft>) : null;
+  } catch {
+    return null;
+  }
+}
+
+function normalizeNewBookingForm(draftForm?: Partial<NewOrderForm>): NewOrderForm {
+  const emptyForm = createEmptyOrderForm();
+  if (!draftForm) return emptyForm;
+  return {
+    ...emptyForm,
+    ...draftForm,
+    check_in_date: isValidDateString(draftForm.check_in_date ?? '') ? draftForm.check_in_date! : emptyForm.check_in_date,
+    check_out_date: isValidDateString(draftForm.check_out_date ?? '') ? draftForm.check_out_date! : emptyForm.check_out_date,
+  };
+}
+
+function normalizeDepositPayments(payments?: DepositPayment[]): DepositPayment[] {
+  if (!Array.isArray(payments) || payments.length === 0) return [createEmptyDepositPayment()];
+  return payments.map((payment) => ({
+    ...createEmptyDepositPayment(),
+    ...payment,
+    id: payment.id || createClientId(),
+    paid_date: isValidDateString(payment.paid_date) ? payment.paid_date : today,
+  }));
+}
+
+export function NewBookingPage() {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const { camps, selectedCampId } = useCamp();
+  const initialDraftRef = useRef<{ loaded: boolean; value: Partial<NewBookingDraft> | null }>({
+    loaded: false,
+    value: null,
   });
+  if (!initialDraftRef.current.loaded) {
+    initialDraftRef.current = { loaded: true, value: readNewBookingDraft() };
+  }
+  const initialDraft = initialDraftRef.current.value;
+  const [orderCampId, setOrderCampId] = useState(initialDraft?.orderCampId ?? '');
+  const [rooms, setRooms] = useState<Room[]>([]);
+  const [bookedRoomIds, setBookedRoomIds] = useState<Set<string>>(new Set());
+  const [priceRules, setPriceRules] = useState<PriceRule[]>([]);
+  const [priceCalendar, setPriceCalendar] = useState<PriceCalendar[]>([]);
+  const [selectedRoomIds, setSelectedRoomIds] = useState<string[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [loadingAvailability, setLoadingAvailability] = useState(false);
+  const [error, setError] = useState('');
+  const [completionMessage, setCompletionMessage] = useState('');
+  const [completionCopyError, setCompletionCopyError] = useState('');
+  const [copied, setCopied] = useState(false);
+  const completionMessageRef = useRef<HTMLTextAreaElement | null>(null);
+  const [isExclusiveBooking, setIsExclusiveBooking] = useState(initialDraft?.isExclusiveBooking ?? false);
+  const [roomTypeFilter, setRoomTypeFilter] = useState(initialDraft?.roomTypeFilter ?? 'all');
+  const [openDatePicker, setOpenDatePicker] = useState<BookingDateField | null>(null);
+  const [bookingCalendarMonth, setBookingCalendarMonth] = useState(
+    startOfMonth(
+      isValidDateString(initialDraft?.form?.check_in_date ?? '') ? initialDraft!.form!.check_in_date : today,
+    ),
+  );
+  const [openPaymentDatePicker, setOpenPaymentDatePicker] = useState<string | null>(null);
+  const [paymentCalendarMonth, setPaymentCalendarMonth] = useState(startOfMonth(today));
+  const [depositPayments, setDepositPayments] = useState<DepositPayment[]>(() =>
+    normalizeDepositPayments(initialDraft?.depositPayments),
+  );
+  const [form, setForm] = useState<NewOrderForm>(() => normalizeNewBookingForm(initialDraft?.form));
+  const [draftSaveEnabled, setDraftSaveEnabled] = useState(true);
+
+  useEffect(() => {
+    if (!draftSaveEnabled) return;
+    try {
+      window.localStorage.setItem(
+        NEW_BOOKING_DRAFT_KEY,
+        JSON.stringify({ orderCampId, form, depositPayments, isExclusiveBooking, roomTypeFilter }),
+      );
+    } catch {
+      // Draft saving is a convenience only; booking flow should keep working if storage is unavailable.
+    }
+  }, [draftSaveEnabled, orderCampId, form, depositPayments, isExclusiveBooking, roomTypeFilter]);
 
   useEffect(() => {
     if (selectedCampId !== ALL_CAMPS) {
@@ -297,17 +372,12 @@ export function NewBookingPage() {
   }
 
   function addDepositPayment() {
-    setDepositPayments((current) => [
-      ...current,
-      { id: createClientId(), paid_date: today, amount: '', last5: '', confirmed: false, note: '' },
-    ]);
+    setDepositPayments((current) => [...current, createEmptyDepositPayment()]);
   }
 
   function removeDepositPayment(id: string) {
     setDepositPayments((current) =>
-      current.length === 1
-        ? [{ id: createClientId(), paid_date: today, amount: '', last5: '', confirmed: false, note: '' }]
-        : current.filter((payment) => payment.id !== id),
+      current.length === 1 ? [createEmptyDepositPayment()] : current.filter((payment) => payment.id !== id),
     );
   }
 
@@ -415,7 +485,9 @@ export function NewBookingPage() {
       setCopied(false);
       setSelectedRoomIds([]);
       setIsExclusiveBooking(false);
-      setDepositPayments([{ id: createClientId(), paid_date: today, amount: '', last5: '', confirmed: false, note: '' }]);
+      setDepositPayments([createEmptyDepositPayment()]);
+      setDraftSaveEnabled(false);
+      window.localStorage.removeItem(NEW_BOOKING_DRAFT_KEY);
     } catch (createError) {
       setError(createError instanceof Error ? createError.message : '建立訂單失敗');
     } finally {
@@ -425,11 +497,27 @@ export function NewBookingPage() {
 
   async function copyCompletionMessage() {
     setCompletionCopyError('');
+    setCopied(false);
     try {
-      await navigator.clipboard.writeText(completionMessage);
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(completionMessage);
+      } else {
+        copyTextWithFallback(completionMessage);
+      }
       setCopied(true);
     } catch {
-      setCompletionCopyError('瀏覽器無法直接複製，請手動選取文字');
+      try {
+        copyTextWithFallback(completionMessage);
+        setCopied(true);
+      } catch {
+        const textarea = completionMessageRef.current;
+        if (textarea) {
+          textarea.focus();
+          textarea.select();
+          textarea.setSelectionRange(0, textarea.value.length);
+        }
+        setCompletionCopyError('瀏覽器暫時不允許自動複製，已幫你選取文字，請長按或使用複製。');
+      }
     }
   }
 
@@ -441,7 +529,8 @@ export function NewBookingPage() {
       </div>
 
       {completionMessage && (
-        <div className="panel completion-panel">
+        <div className="completion-modal-backdrop">
+          <div className="panel completion-panel">
           <div className="panel-heading">
             <div>
               <p className="eyebrow">Booking message</p>
@@ -450,21 +539,44 @@ export function NewBookingPage() {
             <button className="secondary-button" type="button" onClick={copyCompletionMessage}>
               {copied ? <Check size={18} /> : <Clipboard size={18} />}
               {copied ? '已複製' : '複製給客人'}
+          </button>
+          </div>
+          <textarea
+            ref={completionMessageRef}
+            readOnly
+            value={completionMessage}
+            onFocus={(event) => event.currentTarget.select()}
+          />
+          {completionCopyError && <p className="form-error">{completionCopyError}</p>}
+          <div className="completion-actions">
+            <button className="primary-button" type="button" onClick={() => navigate('/bookings')}>
+              前往訂房列表
+            </button>
+            <button
+              className="secondary-button"
+              type="button"
+              onClick={() => {
+                setCompletionMessage('');
+                setForm(createEmptyOrderForm());
+                setDepositPayments([createEmptyDepositPayment()]);
+                setSelectedRoomIds([]);
+                setIsExclusiveBooking(false);
+                setRoomTypeFilter('all');
+                setDraftSaveEnabled(true);
+              }}
+            >
+              繼續新增訂房
             </button>
           </div>
-          <textarea readOnly value={completionMessage} />
-          {completionCopyError && <p className="form-error">{completionCopyError}</p>}
-          <button className="primary-button" type="button" onClick={() => navigate('/bookings')}>
-            前往訂房列表
-          </button>
+          </div>
         </div>
       )}
 
       <form className="form-card" onSubmit={createBookingOrder}>
         {error && <div className="form-error">{error}</div>}
 
-        <div className="form-grid form-grid-booking-main">
-          <label className="form-field-full">
+        <div className="form-grid booking-info-grid">
+          <label className="booking-camp">
             營區
             <select
               value={orderCampId}
@@ -481,37 +593,39 @@ export function NewBookingPage() {
             </select>
           </label>
 
-          <label>
+          <label className="booking-check-in">
             入住日期
             <CuteDatePicker
               month={bookingCalendarMonth}
               open={openDatePicker === 'check_in_date'}
               value={form.check_in_date}
+              onClose={() => setOpenDatePicker(null)}
               onMoveMonth={moveBookingCalendarMonth}
               onSelect={(date) => selectBookingDate('check_in_date', date)}
               onToggle={() => openBookingDatePicker('check_in_date', form.check_in_date)}
             />
           </label>
-          <label>
+          <label className="booking-check-out">
             退房日期
             <CuteDatePicker
               month={bookingCalendarMonth}
               open={openDatePicker === 'check_out_date'}
               value={form.check_out_date}
+              onClose={() => setOpenDatePicker(null)}
               onMoveMonth={moveBookingCalendarMonth}
               onSelect={(date) => selectBookingDate('check_out_date', date)}
               onToggle={() => openBookingDatePicker('check_out_date', form.check_out_date)}
             />
           </label>
-          <label>
+          <label className="booking-guest-name">
             住客姓名
             <input value={form.guest_name} onChange={(event) => updateField('guest_name', event.target.value)} />
           </label>
-          <label>
+          <label className="booking-guest-phone">
             住客電話
             <input value={form.guest_phone} onChange={(event) => updateField('guest_phone', event.target.value)} />
           </label>
-          <label>
+          <label className="booking-invoice-status">
             發票需求
             <select value={form.invoice_status} onChange={(event) => updateField('invoice_status', event.target.value as InvoiceStatus)}>
               <option value="none">不需發票</option>
@@ -520,7 +634,7 @@ export function NewBookingPage() {
               <option value="issued">已開立</option>
             </select>
           </label>
-          <label>
+          <label className="booking-invoice-note">
             發票備註 / 統編資料
             <input
               value={form.invoice_note}
@@ -528,11 +642,11 @@ export function NewBookingPage() {
               placeholder="統編、抬頭、Email 或現場備註"
             />
           </label>
-          <label className="form-field-full">
+          <label className="booking-order-note">
             訂單備註
             <input value={form.note} onChange={(event) => updateField('note', event.target.value)} />
           </label>
-          <label className="checkbox-label">
+          <label className="checkbox-label booking-exclusive">
             <input type="checkbox" checked={isExclusiveBooking} onChange={(event) => toggleExclusiveBooking(event.target.checked)} />
             包場
           </label>
@@ -748,6 +862,7 @@ export function NewBookingPage() {
                     month={paymentCalendarMonth}
                     open={openPaymentDatePicker === payment.id}
                     value={payment.paid_date}
+                    onClose={() => setOpenPaymentDatePicker(null)}
                     onMoveMonth={movePaymentCalendarMonth}
                     onSelect={(date) => selectDepositDate(payment.id, date)}
                     onToggle={() => openDepositDatePicker(payment.id, payment.paid_date)}
@@ -817,6 +932,7 @@ function CuteDatePicker({
   open,
   month,
   onToggle,
+  onClose,
   onMoveMonth,
   onSelect,
 }: {
@@ -824,6 +940,7 @@ function CuteDatePicker({
   open: boolean;
   month: string;
   onToggle: () => void;
+  onClose: () => void;
   onMoveMonth: (months: number) => void;
   onSelect: (date: string) => void;
 }) {
@@ -837,7 +954,15 @@ function CuteDatePicker({
       >
         <b>{formatDisplayDate(value)}</b>
       </button>
-      {open && <CuteCalendar month={month} selectedDate={value} onMoveMonth={onMoveMonth} onSelect={onSelect} />}
+      {open && (
+        <CuteCalendar
+          month={month}
+          selectedDate={value}
+          onClose={onClose}
+          onMoveMonth={onMoveMonth}
+          onSelect={onSelect}
+        />
+      )}
     </div>
   );
 }
@@ -845,11 +970,13 @@ function CuteDatePicker({
 function CuteCalendar({
   month,
   selectedDate,
+  onClose,
   onMoveMonth,
   onSelect,
 }: {
   month: string;
   selectedDate: string;
+  onClose: () => void;
   onMoveMonth: (months: number) => void;
   onSelect: (date: string) => void;
 }) {
@@ -859,7 +986,7 @@ function CuteCalendar({
   const days = buildCalendarDays(month);
 
   return (
-    <div className="cute-calendar" role="dialog" aria-label="選擇日期">
+    <div className="cute-calendar" role="dialog" aria-label="選擇日期" onClick={(event) => event.stopPropagation()}>
       <div className="cute-calendar-head">
         <strong>{year}年{String(monthIndex + 1).padStart(2, '0')}月</strong>
         <div>
@@ -894,6 +1021,24 @@ function CuteCalendar({
             {parseLocalDate(day.date).getDate()}
           </button>
         ))}
+      </div>
+      <div className="cute-calendar-actions">
+        <button type="button" className="cute-calendar-today" onClick={() => onSelect(today)}>
+          今天
+        </button>
+        <button
+          type="button"
+          className="cute-calendar-confirm"
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            onClose();
+          }}
+          aria-label="完成選擇日期"
+        >
+          <Check size={22} />
+          <span>完成</span>
+        </button>
       </div>
     </div>
   );
@@ -932,6 +1077,22 @@ function addDays(date: string, days: number) {
   const nextDate = parseLocalDate(date);
   nextDate.setDate(nextDate.getDate() + days);
   return formatLocalDate(nextDate);
+}
+
+function copyTextWithFallback(text: string) {
+  const textarea = document.createElement('textarea');
+  textarea.value = text;
+  textarea.setAttribute('readonly', '');
+  textarea.style.position = 'fixed';
+  textarea.style.left = '-9999px';
+  textarea.style.top = '0';
+  document.body.appendChild(textarea);
+  textarea.focus();
+  textarea.select();
+  textarea.setSelectionRange(0, textarea.value.length);
+  const success = document.execCommand('copy');
+  document.body.removeChild(textarea);
+  if (!success) throw new Error('copy failed');
 }
 
 function startOfMonth(date: string) {
@@ -1209,7 +1370,9 @@ function formatDisplayDateWithWeekday(date: string) {
 
 function formatMonthDay(date: string) {
   const parsed = parseLocalDate(date);
-  return `${parsed.getMonth() + 1}${String(parsed.getDate()).padStart(2, '0')}`;
+  const month = String(parsed.getMonth() + 1).padStart(2, '0');
+  const day = String(parsed.getDate()).padStart(2, '0');
+  return `${month}${day}`;
 }
 
 function formatMonthDayDisplay(date: string) {

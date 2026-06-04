@@ -3,6 +3,7 @@ import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { ALL_CAMPS, useCamp } from '../contexts/CampContext';
+import { bookingOrderStatusClass, bookingOrderStatusLabel } from '../lib/bookingStatus';
 import { createClientId } from '../lib/id';
 import { getRoomTypeClass, getRoomTypeLabel, ROOM_TYPE_LEGEND, sortRoomsByDisplayOrder } from '../lib/rooms';
 import { supabase } from '../lib/supabase';
@@ -572,7 +573,7 @@ const [editingOrder, setEditingOrder] = useState<BookingOrderWithBookings | null
                     <td>{order.cancellation_postponement ? '需要處理' : '-'}</td>
                     <td>{cleanNoteForDisplay(order.note)}</td>
                     <td>
-                      <span className={`status status-${order.status}`}>{statusLabel(order.status)}</span>
+                      <span className={`status ${bookingOrderStatusClass(order)}`}>{bookingOrderStatusLabel(order)}</span>
                     </td>
                     {canEdit && (
                       <td>
@@ -977,7 +978,9 @@ function MobileBookingCard({
           <span>發票</span>
           <div className="mobile-order-card-side-box">{renderInvoiceStatus(normalizeInvoiceStatus(order.invoice_status))}</div>
           <span>狀態</span>
-          <span className={`status mobile-card-status status-${order.status}`}>{statusLabel(order.status)}</span>
+          <span className={`status mobile-card-status ${bookingOrderStatusClass(order)}`}>
+            {bookingOrderStatusLabel(order)}
+          </span>
           {canEdit && (
             <div className="mobile-order-card-actions">
               <button className="secondary-button" onClick={() => onEdit(order)}>

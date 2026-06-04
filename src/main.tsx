@@ -36,7 +36,14 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
               <Route index element={<Navigate to="/today" replace />} />
               <Route path="today" element={<DashboardPage />} />
               <Route path="availability" element={<AvailabilityPage />} />
-              <Route path="find-availability" element={<FindAvailabilityPage />} />
+              <Route
+                path="find-availability"
+                element={
+                  <ProtectedRoute allowedRoles={['admin', 'staff']}>
+                    <FindAvailabilityPage />
+                  </ProtectedRoute>
+                }
+              />
               <Route path="field-schedule" element={<FieldSchedulePage />} />
               <Route
                 path="bookings"
