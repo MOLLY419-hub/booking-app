@@ -1378,14 +1378,7 @@ function formatCompactDate(date: string) {
 
 function getOrderDateSearchValues(order: Pick<BookingOrderWithBookings, 'check_in_date' | 'check_out_date'>) {
   const stayDates = datesBetween(order.check_in_date, order.check_out_date);
-  const allDates = [order.check_in_date, order.check_out_date, ...stayDates];
-  const dateValues = allDates.flatMap(formatDateSearchValues);
-  return [
-    ...dateValues,
-    `${order.check_in_date} ${order.check_out_date}`,
-    `${formatCompactDate(order.check_in_date)} ${formatCompactDate(order.check_out_date)}`,
-    `${formatDisplayDate(order.check_in_date)} ${formatDisplayDate(order.check_out_date)}`,
-  ];
+  return stayDates.flatMap(formatDateSearchValues);
 }
 
 function formatDateSearchValues(date: string) {

@@ -861,6 +861,7 @@ export function NewBookingPage() {
                   <CuteDatePicker
                     month={paymentCalendarMonth}
                     open={openPaymentDatePicker === payment.id}
+                    placement="top"
                     value={payment.paid_date}
                     onClose={() => setOpenPaymentDatePicker(null)}
                     onMoveMonth={movePaymentCalendarMonth}
@@ -931,6 +932,7 @@ function CuteDatePicker({
   value,
   open,
   month,
+  placement = 'bottom',
   onToggle,
   onClose,
   onMoveMonth,
@@ -939,13 +941,14 @@ function CuteDatePicker({
   value: string;
   open: boolean;
   month: string;
+  placement?: 'bottom' | 'top';
   onToggle: () => void;
   onClose: () => void;
   onMoveMonth: (months: number) => void;
   onSelect: (date: string) => void;
 }) {
   return (
-    <div className="date-picker-wrap booking-date-picker-wrap">
+    <div className={`date-picker-wrap booking-date-picker-wrap date-picker-${placement}`}>
       <button
         aria-expanded={open}
         className="date-control-input date-picker-trigger booking-date-picker-trigger"
