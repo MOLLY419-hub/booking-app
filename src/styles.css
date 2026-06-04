@@ -1475,8 +1475,15 @@ textarea {
 }
 
 .date-picker-top .cute-calendar {
-  top: auto;
-  bottom: calc(100% + 10px);
+  position: fixed;
+  top: 50%;
+  bottom: auto;
+  left: 50%;
+  z-index: 100;
+  width: min(420px, calc(100vw - 32px));
+  max-height: calc(100vh - 48px);
+  overflow: auto;
+  transform: translate(-50%, -50%);
 }
 
 .cute-calendar-head {
