@@ -122,9 +122,11 @@ export function NewBookingPage() {
     loaded: false,
     value: null,
   });
+
   if (!initialDraftRef.current.loaded) {
     initialDraftRef.current = { loaded: true, value: readNewBookingDraft() };
   }
+
   const initialDraft = initialDraftRef.current.value;
   const [orderCampId, setOrderCampId] = useState(initialDraft?.orderCampId ?? '');
   const [rooms, setRooms] = useState<Room[]>([]);
@@ -157,6 +159,7 @@ export function NewBookingPage() {
 
   useEffect(() => {
     if (!draftSaveEnabled) return;
+
     try {
       window.localStorage.setItem(
         NEW_BOOKING_DRAFT_KEY,
@@ -172,6 +175,7 @@ export function NewBookingPage() {
       setOrderCampId(selectedCampId);
       return;
     }
+
     setOrderCampId((current) => current || camps[0]?.id || '');
   }, [camps, selectedCampId]);
 
@@ -207,6 +211,7 @@ export function NewBookingPage() {
     }
 
     loadData();
+
     return () => {
       ignore = true;
     };
@@ -224,12 +229,14 @@ export function NewBookingPage() {
       }
 
       const roomIds = rooms.map((room) => room.id);
+
       if (roomIds.length === 0) {
         setBookedRoomIds(new Set());
         return;
       }
 
       setLoadingAvailability(true);
+
       const { data, error: availabilityError } = await supabase
         .from('bookings')
         .select('room_id')
@@ -242,12 +249,18 @@ export function NewBookingPage() {
         setError(availabilityError.message);
       } else {
         const nextBookedRoomIds = new Set((data ?? []).map((booking) => booking.room_id));
+
         setBookedRoomIds(nextBookedRoomIds);
+
         setSelectedRoomIds((current) => {
-          if (isExclusiveBooking) return rooms.filter((room) => !nextBookedRoomIds.has(room.id)).map((room) => room.id);
+          if (isExclusiveBooking) {
+            return rooms.filter((room) => !nextBookedRoomIds.has(room.id)).map((room) => room.id);
+          }
+
           return current.filter((roomId) => !nextBookedRoomIds.has(roomId));
         });
       }
+
       setLoadingAvailability(false);
     }
 
@@ -257,11 +270,17 @@ export function NewBookingPage() {
   const orderCamp = useMemo(() => camps.find((camp) => camp.id === orderCampId) ?? null, [camps, orderCampId]);
   const isQiumuCamp = orderCamp?.name === '秋慕嵐杉';
   const showPetCleaningFee = isQiumuCamp;
-  const selectedRooms = useMemo(() => rooms.filter((room) => selectedRoomIds.includes(room.id)), [rooms, selectedRoomIds]);
+
+  const selectedRooms = useMemo(
+    () => rooms.filter((room) => selectedRoomIds.includes(room.id)),
+    [rooms, selectedRoomIds],
+  );
+
   const availableRoomTypeLegend = useMemo(() => {
     const roomTypes = Array.from(new Set(rooms.map((room) => getRoomTypeLabel(room))));
     return ROOM_TYPE_LEGEND.filter((item) => roomTypes.includes(item.label));
   }, [rooms]);
+
   const visibleRooms = useMemo(
     () =>
       rooms.filter((room) => {
@@ -271,6 +290,7 @@ export function NewBookingPage() {
       }),
     [bookedRoomIds, rooms, roomTypeFilter],
   );
+
   const stayDates = useMemo(
     () =>
       isValidDateString(form.check_in_date) && isValidDateString(form.check_out_date)
@@ -278,45 +298,66 @@ export function NewBookingPage() {
         : [],
     [form.check_in_date, form.check_out_date],
   );
+
   const nights = stayDates.length;
+
   const firstNightRate = isValidDateString(form.check_in_date)
     ? getRateInfo(form.check_in_date, priceCalendar)
     : ({ category: 'weekday', reason: '請先選擇入住日期' } as RateInfo);
+
   const stayRateSummary = stayDates.map((date) => ({
     date,
     ...getRateInfo(date, priceCalendar),
   }));
+
   const totalAmount = selectedRooms.reduce(
     (sum, room) => sum + calculateRoomStayTotal(room, stayDates, priceRules, priceCalendar),
     0,
   );
+
   const smallPetCount = showPetCleaningFee ? valueToNonNegativeNumber(form.small_pet_count) : 0;
   const largePetCount = showPetCleaningFee ? valueToNonNegativeNumber(form.large_pet_count) : 0;
+
   const smallPetFeePerNight =
-    form.small_pet_fee_per_night === '' ? DEFAULT_SMALL_PET_FEE : valueToNonNegativeNumber(form.small_pet_fee_per_night);
+    form.small_pet_fee_per_night === ''
+      ? DEFAULT_SMALL_PET_FEE
+      : valueToNonNegativeNumber(form.small_pet_fee_per_night);
+
   const largePetFeePerNight =
-    form.large_pet_fee_per_night === '' ? DEFAULT_LARGE_PET_FEE : valueToNonNegativeNumber(form.large_pet_fee_per_night);
+    form.large_pet_fee_per_night === ''
+      ? DEFAULT_LARGE_PET_FEE
+      : valueToNonNegativeNumber(form.large_pet_fee_per_night);
+
   const petCleaningFee = showPetCleaningFee
     ? nights * (smallPetCount * smallPetFeePerNight + largePetCount * largePetFeePerNight)
     : 0;
+
   const extraPersonEligibleRoomCount = selectedRooms.filter((room) =>
     EXTRA_PERSON_ROOM_TYPES.includes(getRoomTypeLabel(room)),
   ).length;
+
   const maxExtraPersonCount = extraPersonEligibleRoomCount * 2;
   const rawExtraPersonCount = valueToNonNegativeNumber(form.extra_person_count);
   const extraPersonCount = isQiumuCamp ? Math.min(rawExtraPersonCount, maxExtraPersonCount) : 0;
+
   const extraPersonFeePerNight =
-    form.extra_person_fee_per_night === '' ? DEFAULT_EXTRA_PERSON_FEE : valueToNonNegativeNumber(form.extra_person_fee_per_night);
+    form.extra_person_fee_per_night === ''
+      ? DEFAULT_EXTRA_PERSON_FEE
+      : valueToNonNegativeNumber(form.extra_person_fee_per_night);
+
   const extraPersonFee = isQiumuCamp ? nights * extraPersonCount * extraPersonFeePerNight : 0;
   const discountAmount = valueToNonNegativeNumber(form.discount_amount);
   const finalTotalAmount = Math.max(totalAmount + petCleaningFee + extraPersonFee - discountAmount, 0);
+
   const totalDepositAmount = depositPayments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
   const activeDepositPayments = depositPayments.filter(isActiveDepositPayment);
   const latestDepositPayment = [...activeDepositPayments].reverse()[0];
+
   const latestDepositLast5 = [...activeDepositPayments]
     .reverse()
     .find((payment) => payment.last5.trim().length === 5)
     ?.last5.trim();
+
   const orderStatus: BookingStatus = getStatusFromLatestPayment(latestDepositPayment);
   const balanceAmount = Math.max(finalTotalAmount - totalDepositAmount, 0);
 
@@ -324,9 +365,18 @@ export function NewBookingPage() {
     setForm((current) => {
       if (key === 'check_in_date') {
         const nextCheckInDate = String(value);
-        if (!isValidDateString(nextCheckInDate)) return { ...current, check_in_date: nextCheckInDate };
-        return { ...current, check_in_date: nextCheckInDate, check_out_date: addDays(nextCheckInDate, 1) };
+
+        if (!isValidDateString(nextCheckInDate)) {
+          return { ...current, check_in_date: nextCheckInDate };
+        }
+
+        return {
+          ...current,
+          check_in_date: nextCheckInDate,
+          check_out_date: addDays(nextCheckInDate, 1),
+        };
       }
+
       return { ...current, [key]: value };
     });
   }
@@ -361,6 +411,7 @@ export function NewBookingPage() {
 
   function toggleRoom(roomId: string) {
     if (bookedRoomIds.has(roomId) || isExclusiveBooking) return;
+
     setSelectedRoomIds((current) =>
       current.includes(roomId) ? current.filter((id) => id !== roomId) : [...current, roomId],
     );
@@ -368,7 +419,10 @@ export function NewBookingPage() {
 
   function toggleExclusiveBooking(checked: boolean) {
     setIsExclusiveBooking(checked);
-    setSelectedRoomIds(checked ? rooms.filter((room) => !bookedRoomIds.has(room.id)).map((room) => room.id) : []);
+
+    setSelectedRoomIds(
+      checked ? rooms.filter((room) => !bookedRoomIds.has(room.id)).map((room) => room.id) : [],
+    );
   }
 
   function addDepositPayment() {
@@ -381,7 +435,11 @@ export function NewBookingPage() {
     );
   }
 
-  function updateDepositPayment<K extends keyof DepositPayment>(id: string, key: K, value: DepositPayment[K]) {
+  function updateDepositPayment<K extends keyof DepositPayment>(
+    id: string,
+    key: K,
+    value: DepositPayment[K],
+  ) {
     setDepositPayments((current) =>
       current.map((payment) => (payment.id === id ? { ...payment, [key]: value } : payment)),
     );
@@ -396,17 +454,34 @@ export function NewBookingPage() {
     try {
       if (!orderCampId) throw new Error('請先選擇營區');
       if (!form.guest_name.trim()) throw new Error('請填寫住客姓名');
+
       if (!isValidDateString(form.check_in_date) || !isValidDateString(form.check_out_date)) {
         throw new Error('請確認入住日期與退房日期');
       }
-      if (form.check_out_date <= form.check_in_date) throw new Error('退房日期必須晚於入住日期');
-      if (selectedRooms.length === 0) throw new Error('請選擇至少一間可預訂房間');
-      if (selectedRoomIds.some((roomId) => bookedRoomIds.has(roomId))) throw new Error('已預訂的房間不能重複訂房');
+
+      if (form.check_out_date <= form.check_in_date) {
+        throw new Error('退房日期必須晚於入住日期');
+      }
+
+      if (selectedRooms.length === 0) {
+        throw new Error('請選擇至少一間可預訂房間');
+      }
+
+      if (selectedRoomIds.some((roomId) => bookedRoomIds.has(roomId))) {
+        throw new Error('已預訂的房間不能重複訂房');
+      }
+
       if (isQiumuCamp && rawExtraPersonCount > maxExtraPersonCount) {
         throw new Error(`加人數量超過上限，已選房型最多可加 ${maxExtraPersonCount} 人`);
       }
-      const invalidLast5 = activeDepositPayments.find((payment) => payment.last5.trim() && !/^\d{5}$/.test(payment.last5.trim()));
-      if (invalidLast5) throw new Error('訂金付款末五碼請輸入 5 位數字');
+
+      const invalidLast5 = activeDepositPayments.find(
+        (payment) => payment.last5.trim() && !/^\d{5}$/.test(payment.last5.trim()),
+      );
+
+      if (invalidLast5) {
+        throw new Error('訂金付款末五碼請輸入 5 位數字');
+      }
 
       const latestActivePayment = [...activeDepositPayments].reverse()[0];
       const nextStatus = getStatusFromLatestPayment(latestActivePayment);
@@ -465,9 +540,11 @@ export function NewBookingPage() {
       }));
 
       const { error: bookingError } = await supabase.from('bookings').insert(bookingsPayload);
+
       if (bookingError) throw bookingError;
 
       const roomsText = isExclusiveBooking ? '包場' : summarizeSelectedRoomTypes(selectedRooms);
+
       setCompletionMessage(
         buildCampCompletionMessage({
           campName: orderCamp?.name || '',
@@ -480,8 +557,10 @@ export function NewBookingPage() {
           extraPersonSummary: buildExtraPersonSummary(extraPersonCount, extraPersonFeePerNight),
           totalAmount: finalTotalAmount,
           transferAmount: Math.round(finalTotalAmount / 2),
+          hasGlassRoom: selectedRooms.some((room) => getRoomTypeLabel(room).includes('玻璃屋')),
         }),
       );
+
       setCopied(false);
       setSelectedRoomIds([]);
       setIsExclusiveBooking(false);
@@ -498,12 +577,14 @@ export function NewBookingPage() {
   async function copyCompletionMessage() {
     setCompletionCopyError('');
     setCopied(false);
+
     try {
       if (navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(completionMessage);
       } else {
         copyTextWithFallback(completionMessage);
       }
+
       setCopied(true);
     } catch {
       try {
@@ -511,11 +592,13 @@ export function NewBookingPage() {
         setCopied(true);
       } catch {
         const textarea = completionMessageRef.current;
+
         if (textarea) {
           textarea.focus();
           textarea.select();
           textarea.setSelectionRange(0, textarea.value.length);
         }
+
         setCompletionCopyError('瀏覽器暫時不允許自動複製，已幫你選取文字，請長按或使用複製。');
       }
     }
@@ -531,43 +614,48 @@ export function NewBookingPage() {
       {completionMessage && (
         <div className="completion-modal-backdrop">
           <div className="panel completion-panel">
-          <div className="panel-heading">
-            <div>
-              <p className="eyebrow">Booking message</p>
-              <h2>訂房完成通知</h2>
+            <div className="panel-heading">
+              <div>
+                <p className="eyebrow">Booking message</p>
+                <h2>訂房完成通知</h2>
+              </div>
+
+              <button className="secondary-button" type="button" onClick={copyCompletionMessage}>
+                {copied ? <Check size={18} /> : <Clipboard size={18} />}
+                {copied ? '已複製' : '複製給客人'}
+              </button>
             </div>
-            <button className="secondary-button" type="button" onClick={copyCompletionMessage}>
-              {copied ? <Check size={18} /> : <Clipboard size={18} />}
-              {copied ? '已複製' : '複製給客人'}
-          </button>
-          </div>
-          <textarea
-            ref={completionMessageRef}
-            readOnly
-            value={completionMessage}
-            onFocus={(event) => event.currentTarget.select()}
-          />
-          {completionCopyError && <p className="form-error">{completionCopyError}</p>}
-          <div className="completion-actions">
-            <button className="primary-button" type="button" onClick={() => navigate('/bookings')}>
-              前往訂房列表
-            </button>
-            <button
-              className="secondary-button"
-              type="button"
-              onClick={() => {
-                setCompletionMessage('');
-                setForm(createEmptyOrderForm());
-                setDepositPayments([createEmptyDepositPayment()]);
-                setSelectedRoomIds([]);
-                setIsExclusiveBooking(false);
-                setRoomTypeFilter('all');
-                setDraftSaveEnabled(true);
-              }}
-            >
-              繼續新增訂房
-            </button>
-          </div>
+
+            <textarea
+              ref={completionMessageRef}
+              readOnly
+              value={completionMessage}
+              onFocus={(event) => event.currentTarget.select()}
+            />
+
+            {completionCopyError && <p className="form-error">{completionCopyError}</p>}
+
+            <div className="completion-actions">
+              <button className="primary-button" type="button" onClick={() => navigate('/bookings')}>
+                前往訂房列表
+              </button>
+
+              <button
+                className="secondary-button"
+                type="button"
+                onClick={() => {
+                  setCompletionMessage('');
+                  setForm(createEmptyOrderForm());
+                  setDepositPayments([createEmptyDepositPayment()]);
+                  setSelectedRoomIds([]);
+                  setIsExclusiveBooking(false);
+                  setRoomTypeFilter('all');
+                  setDraftSaveEnabled(true);
+                }}
+              >
+                繼續新增訂房
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -605,6 +693,7 @@ export function NewBookingPage() {
               onToggle={() => openBookingDatePicker('check_in_date', form.check_in_date)}
             />
           </label>
+
           <label className="booking-check-out">
             退房日期
             <CuteDatePicker
@@ -617,23 +706,30 @@ export function NewBookingPage() {
               onToggle={() => openBookingDatePicker('check_out_date', form.check_out_date)}
             />
           </label>
+
           <label className="booking-guest-name">
             住客姓名
             <input value={form.guest_name} onChange={(event) => updateField('guest_name', event.target.value)} />
           </label>
+
           <label className="booking-guest-phone">
             住客電話
             <input value={form.guest_phone} onChange={(event) => updateField('guest_phone', event.target.value)} />
           </label>
+
           <label className="booking-invoice-status">
             發票需求
-            <select value={form.invoice_status} onChange={(event) => updateField('invoice_status', event.target.value as InvoiceStatus)}>
+            <select
+              value={form.invoice_status}
+              onChange={(event) => updateField('invoice_status', event.target.value as InvoiceStatus)}
+            >
               <option value="none">不需發票</option>
               <option value="month_end">月底開立</option>
               <option value="onsite">現場開立</option>
               <option value="issued">已開立</option>
             </select>
           </label>
+
           <label className="booking-invoice-note">
             發票備註 / 統編資料
             <input
@@ -642,14 +738,21 @@ export function NewBookingPage() {
               placeholder="統編、抬頭、Email 或現場備註"
             />
           </label>
+
           <label className="booking-order-note">
             訂單備註
             <input value={form.note} onChange={(event) => updateField('note', event.target.value)} />
           </label>
+
           <label className="checkbox-label booking-exclusive">
-            <input type="checkbox" checked={isExclusiveBooking} onChange={(event) => toggleExclusiveBooking(event.target.checked)} />
+            <input
+              type="checkbox"
+              checked={isExclusiveBooking}
+              onChange={(event) => toggleExclusiveBooking(event.target.checked)}
+            />
             包場
           </label>
+
           <label className="booking-status">
             狀態
             <div className="field-preview compact-preview">
@@ -667,20 +770,26 @@ export function NewBookingPage() {
                 min={0}
                 type="number"
                 value={form.small_pet_count}
-                onChange={(event) => updateField('small_pet_count', event.target.value === '' ? '' : Number(event.target.value || 0))}
+                onChange={(event) =>
+                  updateField('small_pet_count', event.target.value === '' ? '' : Number(event.target.value || 0))
+                }
                 placeholder="無則空白"
               />
             </label>
+
             <label>
               大型犬數量
               <input
                 min={0}
                 type="number"
                 value={form.large_pet_count}
-                onChange={(event) => updateField('large_pet_count', event.target.value === '' ? '' : Number(event.target.value || 0))}
+                onChange={(event) =>
+                  updateField('large_pet_count', event.target.value === '' ? '' : Number(event.target.value || 0))
+                }
                 placeholder="無則空白"
               />
             </label>
+
             <label>
               小型犬每晚清潔費
               <input
@@ -688,10 +797,14 @@ export function NewBookingPage() {
                 type="number"
                 value={form.small_pet_fee_per_night}
                 onChange={(event) =>
-                  updateField('small_pet_fee_per_night', event.target.value === '' ? '' : Number(event.target.value || 0))
+                  updateField(
+                    'small_pet_fee_per_night',
+                    event.target.value === '' ? '' : Number(event.target.value || 0),
+                  )
                 }
               />
             </label>
+
             <label>
               大型犬每晚清潔費
               <input
@@ -699,7 +812,10 @@ export function NewBookingPage() {
                 type="number"
                 value={form.large_pet_fee_per_night}
                 onChange={(event) =>
-                  updateField('large_pet_fee_per_night', event.target.value === '' ? '' : Number(event.target.value || 0))
+                  updateField(
+                    'large_pet_fee_per_night',
+                    event.target.value === '' ? '' : Number(event.target.value || 0),
+                  )
                 }
               />
             </label>
@@ -715,11 +831,16 @@ export function NewBookingPage() {
                 min={0}
                 type="number"
                 value={form.extra_person_count}
-                onChange={(event) => updateField('extra_person_count', event.target.value === '' ? '' : Number(event.target.value || 0))}
+                onChange={(event) =>
+                  updateField('extra_person_count', event.target.value === '' ? '' : Number(event.target.value || 0))
+                }
                 placeholder={maxExtraPersonCount > 0 ? `最多 ${maxExtraPersonCount} 人` : '此訂單沒有可加人的房型'}
               />
-              {maxExtraPersonCount > 0 && <span className="subtext">四人小木屋、六人樓中樓每間最多可加 2 人</span>}
+              {maxExtraPersonCount > 0 && (
+                <span className="subtext">四人小木屋、六人樓中樓每間最多可加 2 人</span>
+              )}
             </label>
+
             <label>
               每人每晚加人費
               <input
@@ -727,7 +848,10 @@ export function NewBookingPage() {
                 type="number"
                 value={form.extra_person_fee_per_night}
                 onChange={(event) =>
-                  updateField('extra_person_fee_per_night', event.target.value === '' ? '' : Number(event.target.value || 0))
+                  updateField(
+                    'extra_person_fee_per_night',
+                    event.target.value === '' ? '' : Number(event.target.value || 0),
+                  )
                 }
               />
             </label>
@@ -742,12 +866,17 @@ export function NewBookingPage() {
               {loadingAvailability ? '，載入空房中...' : ''}
             </span>
           </div>
+
           {isExclusiveBooking && bookedRoomIds.size > 0 && (
-            <div className="form-error">包場日期已有 {bookedRoomIds.size} 間被預訂，請調整日期或取消包場。</div>
+            <div className="form-error">
+              包場日期已有 {bookedRoomIds.size} 間被預訂，請調整日期或取消包場。
+            </div>
           )}
+
           <div className="rate-reason">
             {stayRateSummary.length === 0 ? '請先選擇有效入住與退房日期' : summarizeStayRateSummary(stayRateSummary)}
           </div>
+
           <div className="room-type-legend room-type-legend-compact">
             <button
               className={`legend-chip legend-filter ${roomTypeFilter === 'all' ? 'active' : ''}`}
@@ -756,9 +885,12 @@ export function NewBookingPage() {
             >
               全部
             </button>
+
             {availableRoomTypeLegend.map((item) => (
               <button
-                className={`legend-chip legend-filter ${item.className} ${roomTypeFilter === item.label ? 'active' : ''}`}
+                className={`legend-chip legend-filter ${item.className} ${
+                  roomTypeFilter === item.label ? 'active' : ''
+                }`}
                 key={item.label}
                 type="button"
                 onClick={() => setRoomTypeFilter(item.label)}
@@ -766,20 +898,25 @@ export function NewBookingPage() {
                 {item.label}
               </button>
             ))}
+
             <button
-              className={`legend-chip legend-filter legend-booked ${roomTypeFilter === 'available' ? 'active' : ''}`}
+              className={`legend-chip legend-filter legend-booked ${
+                roomTypeFilter === 'available' ? 'active' : ''
+              }`}
               type="button"
               onClick={() => setRoomTypeFilter('available')}
             >
               剩餘可訂
             </button>
           </div>
+
           <div className="room-pick-grid">
             {visibleRooms.map((room) => {
               const isBooked = bookedRoomIds.has(room.id);
               const firstNightPrice = getRoomNightPrice(room, form.check_in_date, priceRules, priceCalendar);
               const stayTotal = calculateRoomStayTotal(room, stayDates, priceRules, priceCalendar);
               const roomTypeClass = getRoomTypeClass(getRoomTypeLabel(room));
+
               return (
                 <label className={`room-pick ${isBooked ? 'room-pick-disabled' : roomTypeClass}`} key={room.id}>
                   <input
@@ -788,10 +925,17 @@ export function NewBookingPage() {
                     disabled={isBooked || isExclusiveBooking}
                     onChange={() => toggleRoom(room.id)}
                   />
+
                   <span>
                     <strong>{getRoomTypeLabel(room)}</strong>
                     <small>入住日 {formatPrice(firstNightPrice)}</small>
-                    <small>{isBooked ? '此區間已被預訂' : nights > 1 ? `${nights} 晚合計 ${formatPrice(stayTotal)}` : '可預訂'}</small>
+                    <small>
+                      {isBooked
+                        ? '此區間已被預訂'
+                        : nights > 1
+                          ? `${nights} 晚合計 ${formatPrice(stayTotal)}`
+                          : '可預訂'}
+                    </small>
                   </span>
                 </label>
               );
@@ -804,44 +948,54 @@ export function NewBookingPage() {
             <span>房間總數</span>
             <strong>{selectedRooms.length} 間</strong>
           </div>
+
           <div className="field-preview">
             <span>住宿晚數</span>
             <strong>{nights} 晚</strong>
           </div>
+
           <div className="field-preview">
             <span>房價合計</span>
             <strong>{formatPrice(totalAmount)}</strong>
           </div>
+
           {showPetCleaningFee && (
             <div className="field-preview">
               <span>寵物清潔費</span>
               <strong>{formatPrice(petCleaningFee)}</strong>
             </div>
           )}
+
           {isQiumuCamp && (
             <div className="field-preview">
               <span>加人費</span>
               <strong>{formatPrice(extraPersonFee)}</strong>
             </div>
           )}
+
           <label>
             優待折扣
             <input
               min={0}
               type="number"
               value={form.discount_amount}
-              onChange={(event) => updateField('discount_amount', event.target.value === '' ? '' : Number(event.target.value || 0))}
+              onChange={(event) =>
+                updateField('discount_amount', event.target.value === '' ? '' : Number(event.target.value || 0))
+              }
               placeholder="例如 1000，表示總共折價"
             />
           </label>
+
           <div className="field-preview">
             <span>最終總額</span>
             <strong>{formatPrice(finalTotalAmount)}</strong>
           </div>
+
           <div className="field-preview">
             <span>訂金合計</span>
             <strong>{formatPrice(totalDepositAmount)}</strong>
           </div>
+
           <div className="field-preview">
             <span>尾款</span>
             <strong>{formatPrice(balanceAmount)}</strong>
@@ -853,6 +1007,7 @@ export function NewBookingPage() {
             <h2>訂金付款紀錄</h2>
             <span className="subtext">可登記多次付款，系統會自動加總訂金。</span>
           </div>
+
           <div className="deposit-payment-list">
             {depositPayments.map((payment, index) => (
               <div className="deposit-payment-row" key={payment.id}>
@@ -869,17 +1024,23 @@ export function NewBookingPage() {
                     onToggle={() => openDepositDatePicker(payment.id, payment.paid_date)}
                   />
                 </label>
+
                 <label>
                   金額
                   <input
                     type="number"
                     value={payment.amount}
                     onChange={(event) =>
-                      updateDepositPayment(payment.id, 'amount', event.target.value === '' ? '' : Number(event.target.value || 0))
+                      updateDepositPayment(
+                        payment.id,
+                        'amount',
+                        event.target.value === '' ? '' : Number(event.target.value || 0),
+                      )
                     }
                     placeholder={`第 ${index + 1} 筆訂金`}
                   />
                 </label>
+
                 <label>
                   末五碼
                   <input
@@ -892,6 +1053,7 @@ export function NewBookingPage() {
                     placeholder="例如 12345"
                   />
                 </label>
+
                 <label>
                   備註
                   <input
@@ -900,6 +1062,7 @@ export function NewBookingPage() {
                     placeholder="例如 加訂房間、已對帳"
                   />
                 </label>
+
                 <button
                   className={payment.confirmed ? 'primary-button' : 'secondary-button'}
                   type="button"
@@ -907,12 +1070,14 @@ export function NewBookingPage() {
                 >
                   {payment.confirmed ? '已對帳' : '待對帳'}
                 </button>
+
                 <button className="secondary-button" type="button" onClick={() => removeDepositPayment(payment.id)}>
                   移除
                 </button>
               </div>
             ))}
           </div>
+
           <button className="secondary-button" type="button" onClick={addDepositPayment}>
             新增一筆付款
           </button>
@@ -957,6 +1122,7 @@ function CuteDatePicker({
       >
         <b>{formatDisplayDate(value)}</b>
       </button>
+
       {open && (
         <CuteCalendar
           month={month}
@@ -991,21 +1157,27 @@ function CuteCalendar({
   return (
     <div className="cute-calendar" role="dialog" aria-label="選擇日期" onClick={(event) => event.stopPropagation()}>
       <div className="cute-calendar-head">
-        <strong>{year}年{String(monthIndex + 1).padStart(2, '0')}月</strong>
+        <strong>
+          {year}年{String(monthIndex + 1).padStart(2, '0')}月
+        </strong>
+
         <div>
           <button type="button" onClick={() => onMoveMonth(-1)}>
             ‹
           </button>
+
           <button type="button" onClick={() => onMoveMonth(1)}>
             ›
           </button>
         </div>
       </div>
+
       <div className="cute-calendar-weekdays">
         {['日', '一', '二', '三', '四', '五', '六'].map((weekday) => (
           <span key={weekday}>{weekday}</span>
         ))}
       </div>
+
       <div className="cute-calendar-grid">
         {days.map((day) => (
           <button
@@ -1025,10 +1197,12 @@ function CuteCalendar({
           </button>
         ))}
       </div>
+
       <div className="cute-calendar-actions">
         <button type="button" className="cute-calendar-today" onClick={() => onSelect(today)}>
           今天
         </button>
+
         <button
           type="button"
           className="cute-calendar-confirm"
@@ -1051,10 +1225,12 @@ function datesBetween(start: string, end: string) {
   const dates: string[] = [];
   const current = parseLocalDate(start);
   const endDate = parseLocalDate(end);
+
   while (current < endDate) {
     dates.push(formatLocalDate(current));
     current.setDate(current.getDate() + 1);
   }
+
   return dates;
 }
 
@@ -1065,6 +1241,7 @@ function parseLocalDate(date: string) {
 
 function isValidDateString(date: string) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return false;
+
   const parsedDate = parseLocalDate(date);
   return !Number.isNaN(parsedDate.getTime()) && formatLocalDate(parsedDate) === date;
 }
@@ -1073,6 +1250,7 @@ function formatLocalDate(date: Date) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
+
   return `${year}-${month}-${day}`;
 }
 
@@ -1089,12 +1267,16 @@ function copyTextWithFallback(text: string) {
   textarea.style.position = 'fixed';
   textarea.style.left = '-9999px';
   textarea.style.top = '0';
+
   document.body.appendChild(textarea);
   textarea.focus();
   textarea.select();
   textarea.setSelectionRange(0, textarea.value.length);
+
   const success = document.execCommand('copy');
+
   document.body.removeChild(textarea);
+
   if (!success) throw new Error('copy failed');
 }
 
@@ -1111,10 +1293,13 @@ function addMonths(date: string, months: number) {
 function buildCalendarDays(month: string) {
   const first = parseLocalDate(month);
   const start = new Date(first);
+
   start.setDate(first.getDate() - first.getDay());
+
   return Array.from({ length: 42 }, (_, index) => {
     const day = new Date(start);
     day.setDate(start.getDate() + index);
+
     return {
       date: formatLocalDate(day),
       inMonth: day.getMonth() === first.getMonth(),
@@ -1124,6 +1309,7 @@ function buildCalendarDays(month: string) {
 
 function getRateInfo(date: string, calendar: PriceCalendar[]): RateInfo {
   const override = calendar.find((item) => item.date === date);
+
   if (override) {
     return {
       category: override.rate_category,
@@ -1132,27 +1318,52 @@ function getRateInfo(date: string, calendar: PriceCalendar[]): RateInfo {
   }
 
   const day = parseLocalDate(date).getDay();
+
   if (day === 6) return { category: 'saturday', reason: '系統自動：週六' };
   if (day === 5 || day === 0) return { category: 'friday_sunday_holiday', reason: '系統自動：週五或週日' };
+
   return { category: 'weekday', reason: '系統自動：週一到週四' };
 }
 
 function getRoomNightPrice(room: Room, date: string, rules: PriceRule[], calendar: PriceCalendar[]) {
   const customPrice = getCustomCalendarPrice(room.camp_id, room.room_type, date, calendar);
+
   if (customPrice !== null) return customPrice;
 
   const { category } = getRateInfo(date, calendar);
+
   const rule =
-    rules.find((item) => item.camp_id === room.camp_id && item.room_type === room.room_type && item.rate_category === category) ??
-    rules.find((item) => !item.camp_id && item.room_type === room.room_type && item.rate_category === category);
+    rules.find(
+      (item) =>
+        item.camp_id === room.camp_id &&
+        item.room_type === room.room_type &&
+        item.rate_category === category,
+    ) ??
+    rules.find(
+      (item) =>
+        !item.camp_id &&
+        item.room_type === room.room_type &&
+        item.rate_category === category,
+    );
+
   return Number(rule?.price ?? room.base_price ?? 0);
 }
 
-function getCustomCalendarPrice(campId: string | null, roomType: string | null, date: string, calendar: PriceCalendar[]) {
+function getCustomCalendarPrice(
+  campId: string | null,
+  roomType: string | null,
+  date: string,
+  calendar: PriceCalendar[],
+) {
   if (!roomType) return null;
-  const override = calendar.find((item) => item.date === date && (!campId || !item.camp_id || item.camp_id === campId));
+
+  const override = calendar.find(
+    (item) => item.date === date && (!campId || !item.camp_id || item.camp_id === campId),
+  );
+
   const customPrice = override?.custom_prices?.[roomType];
   const price = Number(customPrice);
+
   return Number.isFinite(price) && price > 0 ? price : null;
 }
 
@@ -1167,6 +1378,7 @@ function rateCategoryLabel(category: RateCategory) {
     saturday: '週六',
     consecutive_holiday: '連續假日',
   };
+
   return labels[category];
 }
 
@@ -1175,11 +1387,18 @@ function summarizeStayRateSummary(items: Array<{ date: string; category: RateCat
 
   items.forEach((item) => {
     const latestGroup = groups[groups.length - 1];
+
     if (latestGroup && latestGroup.category === item.category && latestGroup.reason === item.reason) {
       latestGroup.end = item.date;
       return;
     }
-    groups.push({ start: item.date, end: item.date, category: item.category, reason: item.reason });
+
+    groups.push({
+      start: item.date,
+      end: item.date,
+      category: item.category,
+      reason: item.reason,
+    });
   });
 
   return groups
@@ -1188,6 +1407,7 @@ function summarizeStayRateSummary(items: Array<{ date: string; category: RateCat
         group.start === group.end
           ? formatMonthDayDisplay(group.start)
           : `${formatMonthDayDisplay(group.start)}-${formatMonthDayDisplay(group.end)}`;
+
       return `${dateLabel}：${rateCategoryLabel(group.category)}（${group.reason}）`;
     })
     .join('；');
@@ -1202,12 +1422,14 @@ function statusLabel(status: BookingStatus) {
     checked_out: '已退房',
     cancelled: '已取消',
   };
+
   return labels[status];
 }
 
 function statusHint(status: BookingStatus) {
   if (status === 'awaiting_deposit_confirmation') return '已輸入末五碼，待銀行入帳確認';
   if (status === 'confirmed') return '訂金已確認入帳';
+
   return '尚未登記付款';
 }
 
@@ -1229,6 +1451,7 @@ function isActiveDepositPayment(payment: DepositPayment) {
 
 function getStatusFromLatestPayment(payment: DepositPayment | undefined): BookingStatus {
   if (!payment) return 'pending';
+
   return payment.confirmed ? 'confirmed' : 'awaiting_deposit_confirmation';
 }
 
@@ -1244,19 +1467,23 @@ function buildOrderNote(baseNote: string, payments: DepositPayment[]) {
         payment.confirmed ? '已對帳' : '待對帳',
         payment.note.trim(),
       ].filter(Boolean);
+
       return parts.join(' / ');
     });
 
   if (paymentLines.length === 0) return baseNote.trim();
+
   return [baseNote.trim(), '訂金付款紀錄：', ...paymentLines].filter(Boolean).join('\n');
 }
 
 function summarizeSelectedRoomTypes(rooms: Room[]) {
   const counts = new Map<string, number>();
+
   rooms.forEach((room) => {
     const roomType = room.room_type || '未設定房型';
     counts.set(roomType, (counts.get(roomType) ?? 0) + 1);
   });
+
   return Array.from(counts.entries())
     .map(([roomType, count]) => `${roomType} x ${count}`)
     .join('、');
@@ -1267,11 +1494,13 @@ function buildPetSummary(smallPetCount: number, largePetCount: number) {
     smallPetCount > 0 ? `小型犬 ${smallPetCount} 隻` : '',
     largePetCount > 0 ? `大型犬 ${largePetCount} 隻` : '',
   ].filter(Boolean);
+
   return parts.length > 0 ? parts.join('、') : '無';
 }
 
 function buildExtraPersonSummary(extraPersonCount: number, extraPersonFeePerNight: number) {
   if (extraPersonCount <= 0) return '';
+
   return `加人：${extraPersonCount} 人，每人每晚 ${formatPrice(extraPersonFeePerNight)}`;
 }
 
@@ -1286,6 +1515,7 @@ function buildCampCompletionMessage({
   extraPersonSummary,
   totalAmount,
   transferAmount,
+  hasGlassRoom,
 }: {
   campName: string;
   checkInDate: string;
@@ -1297,16 +1527,23 @@ function buildCampCompletionMessage({
   extraPersonSummary: string;
   totalAmount: number;
   transferAmount: number;
+  hasGlassRoom: boolean;
 }) {
   const transferMemo = `${guestName}${formatMonthDay(checkInDate)}`;
   const isQiumu = campName === '秋慕嵐杉';
+
   const bankInfo = isQiumu
     ? `台灣中小企業銀行烏日分行050
 帳號：483-62-229181
 戶名：黃穆璿`
-    : `中國信託高雄分行 822
+    : hasGlassRoom
+      ? `臺灣企銀 西屯分行 050
+帳號：00612066728
+戶名：悅河股份有限公司`
+      : `中國信託高雄分行 822
 帳號：037890023422
 戶名：周景淳`;
+
   const petLine = isQiumu ? `寵物：${petSummary}` : '';
   const extraPersonLine = isQiumu && extraPersonSummary ? extraPersonSummary : '';
   const facilityNotice = isQiumu ? '🚨燈火如被包場設施暫停開放\n' : '';
@@ -1364,6 +1601,7 @@ ${facilityNotice}📒入住14天內改期或房型，
 
 function formatDisplayDate(date: string) {
   if (!isValidDateString(date)) return date;
+
   return date.split('-').join('/');
 }
 
@@ -1375,11 +1613,13 @@ function formatMonthDay(date: string) {
   const parsed = parseLocalDate(date);
   const month = String(parsed.getMonth() + 1).padStart(2, '0');
   const day = String(parsed.getDate()).padStart(2, '0');
+
   return `${month}${day}`;
 }
 
 function formatMonthDayDisplay(date: string) {
   const parsed = parseLocalDate(date);
+
   return `${parsed.getMonth() + 1}/${parsed.getDate()}`;
 }
 
